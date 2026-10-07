@@ -4,14 +4,14 @@ if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 /*
 Plugin Name: GetTerms Cookie Consent & Policies
 Description: Easy installation of your GetTerms Cookie Consent and Policies widget.
-Version: 1.5
+Version: 1.6
 Author: General Labs.
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 Text Domain: getterms-cookie-consent-policies
 */
 
-define('GETTERMS_PLUGIN_VERSION', '1.5');
+define('GETTERMS_PLUGIN_VERSION', '1.6');
 
 add_action('admin_menu', 'getterms_menu');
 function getterms_menu()
@@ -297,29 +297,44 @@ function getterms_add_consent_scripts() {
 	// getterms_print_consent_embed(). Here we only handle the document embed
 	// runtime used by the policy shortcodes.
 
-	// Check if any getterms shortcodes are present in the current post/page content
+	// Enqueue the embed runtime early when the shortcode is in the page's own
+	// content. The shortcode callback also enqueues it when it renders, which
+	// covers shortcodes placed in page-builder modules, theme templates, ACF
+	// fields, widgets and block templates, where post_content never contains
+	// the shortcode text and this check cannot see it.
 	global $post;
 	if (is_object($post) && !empty($post->post_content)) {
 		$languages = get_option('getterms-languages');
 		$policies = get_option('getterms-policies');
 
+		if (is_string($languages)) {
+			$languages = json_decode($languages, true);
+		}
+		if (is_string($policies)) {
+			$policies = json_decode($policies, true);
+		}
+
 		if (is_array($languages) && is_array($policies)) {
-			$shortcode_found = false;
 			foreach ($policies as $policy) {
 				foreach ($languages as $lang_key => $lang_name) {
-					$shortcode_tag = 'getterms_' . $policy . '_' . $lang_key;
-					if (has_shortcode($post->post_content, $shortcode_tag)) {
-						$shortcode_found = true;
+					if (has_shortcode($post->post_content, 'getterms_' . $policy . '_' . $lang_key)) {
+						getterms_enqueue_document_embed();
 						break 2;
 					}
 				}
 			}
-
-			if ($shortcode_found) {
-				wp_enqueue_script('getterms-embed-js', 'https://gettermscdn.com/dist/js/embed.js', array(), GETTERMS_PLUGIN_VERSION, true);
-			}
 		}
 	}
+}
+
+/**
+ * The runtime that fills .getterms-document-embed containers. Registered in
+ * the footer, so it can be enqueued from a shortcode callback during content
+ * rendering and still be printed.
+ */
+function getterms_enqueue_document_embed()
+{
+	wp_enqueue_script('getterms-embed-js', 'https://gettermscdn.com/dist/js/embed.js', array(), GETTERMS_PLUGIN_VERSION, true);
 }
 
 add_action('init', 'getterms_generate_shortcodes', 5);
@@ -355,6 +370,10 @@ function getterms_generate_shortcodes()
 					}
 
 					$lang_key = str_replace('_', '-', $lang_key);
+
+					// The container is useless without the runtime, and this
+					// is the one place that knows the shortcode is on the page.
+					getterms_enqueue_document_embed();
 
 					$output = '<div class="getterms-document-embed" data-getterms="' . esc_attr($token) . '" data-getterms-document="' . esc_attr($transformedPolicy) . '" data-getterms-lang="' . esc_attr($lang_key) . '" data-getterms-mode="direct" data-getterms-env="https://gettermscdn.com"></div>';
 					return $output;

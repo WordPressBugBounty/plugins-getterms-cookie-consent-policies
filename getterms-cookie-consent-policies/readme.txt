@@ -2,8 +2,8 @@
 Contributors: getterms
 Tags: privacy, terms of service, cookie consent, GDPR, compliance
 Requires at least: 4.7
-Tested up to: 7.0
-Stable tag: 1.5
+Tested up to: 7.1
+Stable tag: 1.6
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -178,6 +178,10 @@ Build steps to reproduce the distributed assets:
 No private repositories are required to build; all source files needed are available in the public repository.
 
 == Changelog ==
+
+= 1.6 =
+* Fixed policy shortcodes rendering an empty container when placed outside the page body. The script that fills the container was only loaded when the shortcode text appeared in the page's own content, so a shortcode in a page-builder module, theme template, custom field, widget or block template produced the container but never the policy. The shortcode now loads the script itself wherever it renders.
+* Fixed the same check never loading the script when the stored languages and policies were held as JSON strings rather than arrays.
 
 = 1.5 =
 * Fixed the settings page clearing a working configuration. The settings page cleared the stored token, widget slug, languages and policies before it had retrieved and validated their replacements, so any problem with the retrieval left the site with no configuration at all and no error shown. The plugin now retrieves and validates the new configuration first and writes over the existing options only on success.
